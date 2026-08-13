@@ -1,6 +1,7 @@
 const mammoth = require("mammoth");
 const { faker } = require("@faker-js/faker");
 const nlp = require("compromise");
+const fs = require("fs");
 
 function createRandomMail() {
   return faker.internet.email();
@@ -17,7 +18,8 @@ mammoth
   //     console.log(res);
   // })
   .then((result) => {
-    let res = result.value;
+    let originalText = result.value;
+    let res = originalText;
 
     const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g; // g - flag for multiple output
     const emails = res.match(emailRegex) || [];
@@ -136,6 +138,7 @@ mammoth
 
     const pinRegex = /\b[1-9]\d{2}\s?\d{3}\b/g;
     const pins = res.match(pinRegex) || [];
+
     const uniquePins = new Set();
 
     pins.forEach((pin) => {
@@ -166,6 +169,7 @@ mammoth
     const webRegex = /(?:https?:\/\/|www\.)[^\s)\],]+/g;
 
     const web = res.match(webRegex) || [];
+    // console.log(web);
 
     const uniqueWeb = new Set();
     const webMap = new Map();
@@ -228,6 +232,60 @@ mammoth
       companyMap.set(company, faker.company.name());
     });
 
+    const chunks = originalText.split(/\n\s*\n/);
+
+    const addressKeywords = [
+      "Registered Office",
+      "Corporate Office",
+      "manufacturing facility",
+      "Plot No.",
+      "Floor",
+      "Road",
+      "Marg",
+      "Nagar",
+      "Village",
+      "Tower",
+      "Block",
+    ];
+
+    const pinPattern = /\b[1-9]\d{2}\s?\d{3}\b/;
+
+    const uniqueAddresses = new Set();
+
+    chunks.forEach((chunk) => {
+      const hasPin = pinPattern.test(chunk);
+
+      const hasKeyword = addressKeywords.some((keyword) =>
+        chunk.toLowerCase().includes(keyword.toLowerCase()),
+      );
+
+      const hasOtherPII =
+        /Email|Website|Telephone|Contact Person|Limited/i.test(chunk);
+
+      const hasLongContext =
+        /incorporated under|having its|located at|references to|public limited company/i.test(
+          chunk,
+        );
+
+      if (
+        hasPin &&
+        hasKeyword &&
+        !hasOtherPII &&
+        !hasLongContext &&
+        chunk.length < 300
+      ) {
+        uniqueAddresses.add(chunk.trim());
+      }
+    });
+    const addressMap = new Map();
+
+    uniqueAddresses.forEach((address) => {
+      addressMap.set(
+        address,
+        faker.location.streetAddress({ useFullAddress: true }),
+      );
+    });
+
     // console.log(myMap);
 
     // console.log(phMap);
@@ -265,6 +323,7 @@ mammoth
     res = replaceData(res, webMap);
     res = replaceData(res, sebiMap);
     res = replaceData(res, companyMap);
+    res = replaceData(res, addressMap);
 
     // console.log(res.slice(0, 2000));
 
@@ -284,6 +343,32 @@ mammoth
 
     // console.log("Original SEBI exists:", res.includes("INM000013004"));
 
+    // const originalsRemaining = [];
+
+    // [
+    //   emailMap,
+    //   phMap,
+    //   nameMap,
+    //   pinMap,
+    //   cinMap,
+    //   webMap,
+    //   sebiMap,
+    //   companyMap,
+    //   addressMap,
+    // ].forEach((dataMap) => {
+    //   dataMap.forEach((fakeData, originalData) => {
+    //     if (res.includes(originalData)) {
+    //       originalsRemaining.push(originalData);
+    //     }
+    //   });
+    // });
+
+    // console.log("Original data still remaining:");
+    // console.log(originalsRemaining);
+
+    // fs.writeFileSync("../output/redacted.txt", res);
+
+    // console.log("Redacted file saved successfully");
   })
   .catch(function (error) {
     console.log("Failed to extract data");
