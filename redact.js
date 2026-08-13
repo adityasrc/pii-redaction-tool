@@ -2,6 +2,8 @@ const mammoth = require("mammoth");
 const { faker } = require("@faker-js/faker");
 const nlp = require("compromise");
 const fs = require("fs");
+const createRedactedDocx = require("./docxWriter");
+const createPlainDocx = require("./plainDocxWriter");
 
 function createRandomMail() {
   return faker.internet.email();
@@ -36,7 +38,7 @@ mammoth
       }
     });
 
-    let phRegex = /\+91(?:\s+\d+){2,3}/g;
+    let phRegex = /\+\s*91(?:\s+\d+){2,3}/g;
     const phones = res.match(phRegex) || [];
 
     const uniquePhones = new Set(phones);
@@ -130,6 +132,8 @@ mammoth
       uniqueNames.add(name);
     });
 
+    uniqueNames.add("Sarthak Malvadkar");
+
     const nameMap = new Map();
 
     uniqueNames.forEach((name) => {
@@ -202,7 +206,17 @@ mammoth
     const companyRegex =
       /[A-Z][A-Za-z &.,'-]+?Private Limited|[A-Z][A-Za-z &.,'-]+?Limited|[A-Z][A-Za-z &.,'-]+?LLP/g;
     const companies = res.match(companyRegex) || [];
+
     const uniqueCompanies = new Set();
+
+    const upperCompanyRegex =
+      /\b[A-Z][A-Z &.,'-]{2,}(?:PRIVATE LIMITED|LIMITED|LLP)\b/g;
+
+    const upperCompanies = res.match(upperCompanyRegex) || [];
+
+    upperCompanies.forEach((company) => {
+      uniqueCompanies.add(company.trim());
+    });
 
     companies.forEach((company) => {
       company = company.trim();
@@ -227,10 +241,23 @@ mammoth
     uniqueCompanies.delete("Securities Limited");
     uniqueCompanies.delete("Care Analytics and Advisory Private Limited");
 
+    const trustRegex = /\b[A-Z][A-Z ]+FAMILY TRUST\b/g;
+
+    const trusts = res.match(trustRegex) || [];
+
+    const uniqueTrusts = new Set(trusts);
+
+    const trustMap = new Map();
+
+    uniqueTrusts.forEach((trust) => {
+      trustMap.set(trust, faker.company.name());
+    });
+
     const companyMap = new Map();
     uniqueCompanies.forEach((company) => {
       companyMap.set(company, faker.company.name());
     });
+    // console.log("Trusts:", uniqueTrusts);
 
     const chunks = originalText.split(/\n\s*\n/);
 
@@ -369,6 +396,37 @@ mammoth
     // fs.writeFileSync("../output/redacted.txt", res);
 
     // console.log("Redacted file saved successfully");
+
+    createRedactedDocx(
+      [
+        emailMap,
+        phMap,
+        pinMap,
+        cinMap,
+        webMap,
+        sebiMap,
+        companyMap,
+        trustMap,
+        addressMap,
+      ],
+      nameMap,
+    );
+
+    createPlainDocx(
+      originalText,
+      [
+        emailMap,
+        phMap,
+        pinMap,
+        cinMap,
+        webMap,
+        sebiMap,
+        companyMap,
+        trustMap,
+        addressMap,
+      ],
+      nameMap,
+    );
   })
   .catch(function (error) {
     console.log("Failed to extract data");
