@@ -43,3 +43,32 @@ The trade-off is that the original formatting, tables, spacing, and layout are n
 - Website detection is regex-based. A malformed source URL such as `www.example. com` can result in a minor formatting artifact after replacement.
 
 The original source document is kept unchanged. Redaction is performed on generated output files.
+
+## Setup
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Place the source document at:
+
+```
+input/original.docx
+```
+
+Run:
+
+```
+node src/redact.js
+```
+
+The generated files are saved in:
+
+```
+output/redacted.docx
+output/redacted-plain.docx
+```
+
+`redacted.docx` attempts to preserve the original formatting, while `redacted-plain.docx` prioritizes text-level redaction coverage.
